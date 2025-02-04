@@ -17,7 +17,7 @@ contract TestToken is ERC20("TestToken", "TKN") {
         address recipient,
         uint256 amount
     ) public override returns (bool) {
-        _approve(sender, _msgSender(), amount);
+        _approve(sender, msg.sender, amount);
         return super.transferFrom(sender, recipient, amount);
     }
 }
