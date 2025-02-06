@@ -8,26 +8,26 @@ import "./interfaces/IWETH9.sol";
 
 contract TokenMux {
     mapping(uint8 => TestToken) public tokens;
-    uint8 num_tokens;
+    uint8 public numTokens;
     uint256 initialSupply;
     uint256 swapNonce;
     IUniV3Factory uniV3Factory;
     IWETH9 weth;
     INonfungiblePositionManager uniV3PositionManager;
     IUniV3Router uniV3Router;
-    bool wethPoolsReady;
-    bool tokenPoolsReady;
+    bool public wethPoolsReady;
+    bool public tokenPoolsReady;
 
     constructor(
-        uint8 _num_tokens,
+        uint8 _numTokens,
         uint256 _initialSupply,
         address _weth,
         address _uniV3Factory,
         address _uniV3PositionManager,
         address _uniV3Router
     ) {
-        require(_num_tokens >= 3, "num_tokens must be >= 3");
-        num_tokens = _num_tokens;
+        require(_numTokens >= 3, "numTokens must be >= 3");
+        numTokens = _numTokens;
         initialSupply = _initialSupply;
         uniV3Factory = IUniV3Factory(_uniV3Factory);
         weth = IWETH9(_weth);
@@ -37,14 +37,14 @@ contract TokenMux {
         uniV3Router = IUniV3Router(_uniV3Router);
 
         // create tokens
-        for (uint8 i = 0; i < _num_tokens; i++) {
+        for (uint8 i = 0; i < _numTokens; i++) {
             tokens[i] = new TestToken(_initialSupply);
         }
     }
 
     /** make a pool between each token and WETH */
     function initWethPools() public {
-        for (uint8 i = 0; i < num_tokens; i++) {
+        for (uint8 i = 0; i < numTokens; i++) {
             address pool = uniV3Factory.createPool(
                 address(tokens[i]),
                 address(weth),
@@ -61,9 +61,9 @@ contract TokenMux {
             "token pools not initialized. Call initWethPools()"
         );
         uint256 weth_balance = weth.balanceOf(address(this));
-        require(weth_balance >= num_tokens, "insufficient WETH balance");
-        uint256 amountDesired = (weth_balance / 2) / num_tokens;
-        for (uint8 i = 0; i < num_tokens; i++) {
+        require(weth_balance >= numTokens, "insufficient WETH balance");
+        uint256 amountDesired = (weth_balance / 2) / numTokens;
+        for (uint8 i = 0; i < numTokens; i++) {
             address tokenA = address(tokens[i]);
             address tokenB = address(weth);
             (address token0, address token1) = tokenA < tokenB
@@ -90,10 +90,10 @@ contract TokenMux {
     function initTokenPools() public {
         // make a pool between each token and the next token
         // A <-> B, B <-> C, C <-> D, ...
-        for (uint8 i = 0; i < num_tokens; i++) {
+        for (uint8 i = 0; i < numTokens; i++) {
             address pool = uniV3Factory.createPool(
                 address(tokens[i]),
-                address(tokens[(i + 1) % num_tokens]), // wrap around
+                address(tokens[(i + 1) % numTokens]), // wrap around
                 3000
             );
             IUniV3Pool(pool).initialize(79228162514264337593543950336);
@@ -109,10 +109,10 @@ contract TokenMux {
             ) != address(0),
             "token pools not initialized. Call initTokenPools()"
         );
-        uint256 amountDesired = (initialSupply / num_tokens) / 4;
-        for (uint8 i = 0; i < num_tokens; i++) {
+        uint256 amountDesired = (initialSupply / numTokens) / 4;
+        for (uint8 i = 0; i < numTokens; i++) {
             address tokenA = address(tokens[i]);
-            address tokenB = address(tokens[(i + 1) % num_tokens]);
+            address tokenB = address(tokens[(i + 1) % numTokens]);
             (address token0, address token1) = tokenA < tokenB
                 ? (tokenA, tokenB)
                 : (tokenB, tokenA);
@@ -158,7 +158,7 @@ contract TokenMux {
     ) internal view returns (ExactInputSingleParams memory) {
         // pick token index based on nonce
         // keeps the same tokenIdx for 4 swaps, then increments
-        uint8 tokenIdx = uint8((swapNonce / 4) % num_tokens);
+        uint8 tokenIdx = uint8((swapNonce / 4) % numTokens);
 
         // cycle through trade types per call
         if (swapNonce % 4 == 0) {
@@ -181,7 +181,7 @@ contract TokenMux {
                 );
         } else if (swapNonce % 4 == 2) {
             // swap token1 for token2
-            uint8 tokenIdxNext = uint8((tokenIdx + 1) % num_tokens);
+            uint8 tokenIdxNext = uint8((tokenIdx + 1) % numTokens);
             return
                 getSwapParams(
                     address(tokens[tokenIdx]),
@@ -191,7 +191,7 @@ contract TokenMux {
                 );
         } else {
             // swap token2 for token1
-            uint8 tokenIdxNext = uint8((tokenIdx + 1) % num_tokens);
+            uint8 tokenIdxNext = uint8((tokenIdx + 1) % numTokens);
             return
                 getSwapParams(
                     address(tokens[tokenIdxNext]),
